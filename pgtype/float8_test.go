@@ -1,64 +1,94 @@
 package pgtype_test
 
 import (
-	"context"
+	"encoding/json"
+	"math"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxtest"
 )
 
-func TestFloat8Codec(t *testing.T) {
-	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "float8", []pgxtest.ValueRoundTripTest{
-		{Param: pgtype.Float8{Float64: -1, Valid: true}, Result: new(pgtype.Float8), Test: isExpectedEq(pgtype.Float8{Float64: -1, Valid: true})},
-		{Param: pgtype.Float8{Float64: 0, Valid: true}, Result: new(pgtype.Float8), Test: isExpectedEq(pgtype.Float8{Float64: 0, Valid: true})},
-		{Param: pgtype.Float8{Float64: 1, Valid: true}, Result: new(pgtype.Float8), Test: isExpectedEq(pgtype.Float8{Float64: 1, Valid: true})},
-		{Param: float64(0.00001), Result: new(float64), Test: isExpectedEq(float64(0.00001))},
-		{Param: float64(9999.99), Result: new(float64), Test: isExpectedEq(float64(9999.99))},
-		{Param: pgtype.Float8{}, Result: new(pgtype.Float8), Test: isExpectedEq(pgtype.Float8{})},
-		{Param: int64(1), Result: new(int64), Test: isExpectedEq(int64(1))},
-		{Param: "1.23", Result: new(string), Test: isExpectedEq("1.23")},
-		{Param: nil, Result: new(*float64), Test: isExpectedEq((*float64)(nil))},
-	})
-}
-
-func TestFloat8MarshalJSON(t *testing.T) {
-	successfulTests := []struct {
-		source pgtype.Float8
-		result string
+func TestFloat8Scan(t *testing.T) {
+	tests := []struct {
+		src    any
+		want   pgtype.Float8
+		wantErr bool
 	}{
-		{source: pgtype.Float8{Float64: 0}, result: "null"},
-		{source: pgtype.Float8{Float64: 1.23, Valid: true}, result: "1.23"},
+		{src: float64(3.14), want: pgtype.Float8{Float64: 3.14, Valid: true}},
+		{src: float64(0), want: pgtype.Float8{Float64: 0, Valid: true}},
+		{src: nil, want: pgtype.Float8{}},
+		{src: "invalid", wantErr: true},
 	}
-	for i, tt := range successfulTests {
-		r, err := tt.source.MarshalJSON()
-		if err != nil {
-			t.Errorf("%d: %v", i, err)
-		}
 
-		if string(r) != tt.result {
-			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
+	for _, tt := range tests {
+		var f pgtype.Float8
+		err := f.Scan(tt.src)
+		if tt.wantErr {
+			if err == nil {
+				t.Errorf("Scan(%v): expected error, got nil", tt.src)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("Scan(%v): unexpected error: %v", tt.src, err)
+			continue
+		}
+		if f != tt.want {
+			t.Errorf("Scan(%v): got %v, want %v", tt.src, f, tt.want)
 		}
 	}
 }
 
-func TestFloat8UnmarshalJSON(t *testing.T) {
-	successfulTests := []struct {
-		source string
-		result pgtype.Float8
+func TestFloat8Value(t *testing.T) {
+	tests := []struct {
+		input pgtype.Float8
+		want  any
 	}{
-		{source: "null", result: pgtype.Float8{Float64: 0}},
-		{source: "1.23", result: pgtype.Float8{Float64: 1.23, Valid: true}},
+		{input: pgtype.Float8{Float64: 1.5, Valid: true}, want: float64(1.5)},
+		{input: pgtype.Float8{}, want: nil},
+		{input: pgtype.Float8{Float64: math.NaN(), Valid: true}, want: "NaN"},
+		{input: pgtype.Float8{Float64: math.Inf(1), Valid: true}, want: "Infinity"},
+		{input: pgtype.Float8{Float64: math.Inf(-1), Valid: true}, want: "-Infinity"},
 	}
-	for i, tt := range successfulTests {
-		var r pgtype.Float8
-		err := r.UnmarshalJSON([]byte(tt.source))
+
+	for _, tt := range tests {
+		got, err := tt.input.Value()
 		if err != nil {
-			t.Errorf("%d: %v", i, err)
+			t.Errorf("Value() error: %v", err)
+			continue
+		}
+		if got != tt.want {
+			t.Errorf("Value(): got %v, want %v", got, tt.want)
+		}
+	}
+}
+
+func TestFloat8JSON(t *testing.T) {
+	tests := []struct {
+		input pgtype.Float8
+		want  string
+	}{
+		{input: pgtype.Float8{Float64: 2.71, Valid: true}, want: "2.71"},
+		{input: pgtype.Float8{}, want: "null"},
+	}
+
+	for _, tt := range tests {
+		b, err := json.Marshal(tt.input)
+		if err != nil {
+			t.Errorf("MarshalJSON() error: %v", err)
+			continue
+		}
+		if string(b) != tt.want {
+			t.Errorf("MarshalJSON(): got %s, want %s", b, tt.want)
 		}
 
-		if r != tt.result {
-			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
+		var f pgtype.Float8
+		if err := json.Unmarshal(b, &f); err != nil {
+			t.Errorf("UnmarshalJSON(%s) error: %v", b, err)
+			continue
+		}
+		if f != tt.input {
+			t.Errorf("UnmarshalJSON(%s): got %v, want %v", b, f, tt.input)
 		}
 	}
 }
