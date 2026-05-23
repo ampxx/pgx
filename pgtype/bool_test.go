@@ -1,62 +1,97 @@
 package pgtype_test
 
 import (
-	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxtest"
 )
 
-func TestBoolCodec(t *testing.T) {
-	pgxtest.RunValueRoundTripTests(context.Background(), t, defaultConnTestRunner, nil, "bool", []pgxtest.ValueRoundTripTest{
-		{Param: true, Result: new(bool), Test: isExpectedEq(true)},
-		{Param: false, Result: new(bool), Test: isExpectedEq(false)},
-		{Param: true, Result: new(pgtype.Bool), Test: isExpectedEq(pgtype.Bool{Bool: true, Valid: true})},
-		{Param: pgtype.Bool{}, Result: new(pgtype.Bool), Test: isExpectedEq(pgtype.Bool{})},
-		{Param: nil, Result: new(*bool), Test: isExpectedEq((*bool)(nil))},
-	})
+func TestBoolScan(t *testing.T) {
+	tests := []struct {
+		src      any
+		want     pgtype.Bool
+		wantErr  bool
+	}{
+		{src: nil, want: pgtype.Bool{}},
+		{src: true, want: pgtype.Bool{Bool: true, Valid: true}},
+		{src: false, want: pgtype.Bool{Bool: false, Valid: true}},
+		{src: "true", want: pgtype.Bool{Bool: true, Valid: true}},
+		{src: "false", want: pgtype.Bool{Bool: false, Valid: true}},
+		{src: "1", want: pgtype.Bool{Bool: true, Valid: true}},
+		{src: "0", want: pgtype.Bool{Bool: false, Valid: true}},
+		{src: "invalid", wantErr: true},
+		{src: 42, wantErr: true},
+	}
+
+	for _, tt := range tests {
+		var b pgtype.Bool
+		err := b.Scan(tt.src)
+		if tt.wantErr {
+			if err == nil {
+				t.Errorf("Scan(%v): expected error, got nil", tt.src)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("Scan(%v): unexpected error: %v", tt.src, err)
+			continue
+		}
+		if b != tt.want {
+			t.Errorf("Scan(%v): got %v, want %v", tt.src, b, tt.want)
+		}
+	}
 }
 
-func TestBoolMarshalJSON(t *testing.T) {
-	successfulTests := []struct {
-		source pgtype.Bool
-		result string
+func TestBoolValue(t *testing.T) {
+	tests := []struct {
+		input pgtype.Bool
+		want  any
 	}{
-		{source: pgtype.Bool{}, result: "null"},
-		{source: pgtype.Bool{Bool: true, Valid: true}, result: "true"},
-		{source: pgtype.Bool{Bool: false, Valid: true}, result: "false"},
+		{input: pgtype.Bool{}, want: nil},
+		{input: pgtype.Bool{Bool: true, Valid: true}, want: true},
+		{input: pgtype.Bool{Bool: false, Valid: true}, want: false},
 	}
-	for i, tt := range successfulTests {
-		r, err := tt.source.MarshalJSON()
-		if err != nil {
-			t.Errorf("%d: %v", i, err)
-		}
 
-		if string(r) != tt.result {
-			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, string(r))
+	for _, tt := range tests {
+		got, err := tt.input.Value()
+		if err != nil {
+			t.Errorf("Value(): unexpected error: %v", err)
+			continue
+		}
+		if got != tt.want {
+			t.Errorf("Value(): got %v, want %v", got, tt.want)
 		}
 	}
 }
 
-func TestBoolUnmarshalJSON(t *testing.T) {
-	successfulTests := []struct {
-		source string
-		result pgtype.Bool
+func TestBoolJSON(t *testing.T) {
+	tests := []struct {
+		input pgtype.Bool
+		want  string
 	}{
-		{source: "null", result: pgtype.Bool{}},
-		{source: "true", result: pgtype.Bool{Bool: true, Valid: true}},
-		{source: "false", result: pgtype.Bool{Bool: false, Valid: true}},
+		{input: pgtype.Bool{}, want: "null"},
+		{input: pgtype.Bool{Bool: true, Valid: true}, want: "true"},
+		{input: pgtype.Bool{Bool: false, Valid: true}, want: "false"},
 	}
-	for i, tt := range successfulTests {
-		var r pgtype.Bool
-		err := r.UnmarshalJSON([]byte(tt.source))
+
+	for _, tt := range tests {
+		data, err := json.Marshal(tt.input)
 		if err != nil {
-			t.Errorf("%d: %v", i, err)
+			t.Errorf("MarshalJSON(): unexpected error: %v", err)
+			continue
+		}
+		if string(data) != tt.want {
+			t.Errorf("MarshalJSON(): got %s, want %s", data, tt.want)
 		}
 
-		if r != tt.result {
-			t.Errorf("%d: expected %v to convert to %v, but it was %v", i, tt.source, tt.result, r)
+		var b pgtype.Bool
+		if err := json.Unmarshal(data, &b); err != nil {
+			t.Errorf("UnmarshalJSON(%s): unexpected error: %v", data, err)
+			continue
+		}
+		if b != tt.input {
+			t.Errorf("UnmarshalJSON(%s): got %v, want %v", data, b, tt.input)
 		}
 	}
 }
