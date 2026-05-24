@@ -32,6 +32,8 @@ func TestFloat8CodecEncodeBinary(t *testing.T) {
 		{value: float64(math.NaN()), wantOK: true},
 		{value: float64(math.Inf(1)), wantOK: true},
 		{value: float64(math.Inf(-1)), wantOK: true}, // also test negative infinity
+		// float32 is not a supported type for Float8Codec
+		{value: float32(3.14), wantOK: false},
 		{value: "unsupported", wantOK: false},
 	}
 
@@ -74,6 +76,7 @@ func TestFloat8CodecScanBinary(t *testing.T) {
 			wantOK: true,
 		},
 		{
+			// nil src represents a SQL NULL value; scanning into Float8 should succeed
 			src:    nil,
 			target: new(pgtype.Float8),
 			wantOK: true,
