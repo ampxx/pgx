@@ -28,6 +28,9 @@ func TestFloat8CodecEncodeBinary(t *testing.T) {
 		{value: float64(3.14), wantOK: true},
 		{value: pgtype.Float8{Float64: 3.14, Valid: true}, wantOK: true},
 		{value: pgtype.Float8{}, wantOK: true},
+		// NaN and infinity are valid float64 values that should also be encodable
+		{value: float64(math.NaN()), wantOK: true},
+		{value: float64(math.Inf(1)), wantOK: true},
 		{value: "unsupported", wantOK: false},
 	}
 
@@ -52,7 +55,20 @@ func TestFloat8CodecScanBinary(t *testing.T) {
 		wantOK bool
 	}{
 		{
-			src:    func() []byte { b := make([]byte, 8); _ = math.Float64bits(1.23); return b }(),
+			// Encode 1.23 as IEEE 754 big-endian bytes for the scan source
+			src: func() []byte {
+				bits := math.Float64bits(1.23)
+				b := make([]byte, 8)
+				b[0] = byte(bits >> 56)
+				b[1] = byte(bits >> 48)
+				b[2] = byte(bits >> 40)
+				b[3] = byte(bits >> 32)
+				b[4] = byte(bits >> 24)
+				b[5] = byte(bits >> 16)
+				b[6] = byte(bits >> 8)
+				b[7] = byte(bits)
+				return b
+			}(),
 			target: new(float64),
 			wantOK: true,
 		},
