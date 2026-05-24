@@ -8,6 +8,7 @@ import (
 
 // Int8 represents a PostgreSQL bigint (int8).
 // Note: despite the name, this maps to Go's int64, not int8.
+// The name "Int8" refers to the PostgreSQL type name (8-byte integer), not the Go type int8.
 type Int8 struct {
 	Int64 int64
 	Valid bool
@@ -60,6 +61,8 @@ func (i Int8) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 // Accepts both numeric JSON values and quoted string representations.
+// Note: JSON numbers are floating-point by spec, but integers up to 2^53 are
+// represented exactly. For full int64 range safety, prefer the quoted string form.
 func (i *Int8) UnmarshalJSON(b []byte) error {
 	if string(b) == "null" {
 		*i = Int8{}
