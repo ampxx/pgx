@@ -1,9 +1,13 @@
 package pgtype
 
 import (
+	"database/sql/driver"
 	"fmt"
 )
 
+// TextCodec handles encoding and decoding of PostgreSQL text and varchar types.
+// Both text format and binary format are supported (binary format for text types
+// is just the raw bytes, same as text format).
 type TextCodec struct{}
 
 func (TextCodec) FormatSupported(format int16) bool {
@@ -62,7 +66,9 @@ type scanPlanTextCodecEitherFormatToString struct{}
 func (scanPlanTextCodecEitherFormatToString) Scan(src []byte, dst any) error {
 	p := dst.(*string)
 	if src == nil {
-		return fmt.Errorf("cannot scan NULL into *string")
+		// NULL values cannot be scanned into a plain *string; use *Text (pgtype.Text) instead
+		// if you need to handle NULLs gracefully.
+		return fmt.Errorf("cannot scan NULL into *string; consider using *pgtype.Text to handle NULL values")
 	}
 	*p = string(src)
 	return nil
