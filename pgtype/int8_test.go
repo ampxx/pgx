@@ -17,6 +17,8 @@ func TestInt8Scan(t *testing.T) {
 		{name: "int64", src: int64(42), want: pgtype.Int8{Int64: 42, Valid: true}},
 		{name: "string", src: "9223372036854775807", want: pgtype.Int8{Int64: 9223372036854775807, Valid: true}},
 		{name: "negative", src: int64(-1), want: pgtype.Int8{Int64: -1, Valid: true}},
+		{name: "zero", src: int64(0), want: pgtype.Int8{Int64: 0, Valid: true}},
+		{name: "min int64", src: int64(-9223372036854775808), want: pgtype.Int8{Int64: -9223372036854775808, Valid: true}},
 		{name: "invalid string", src: "not-a-number", wantErr: true},
 		{name: "unsupported type", src: 3.14, wantErr: true},
 	}
@@ -78,5 +80,14 @@ func TestInt8JSON(t *testing.T) {
 	nullB, _ := nullI.MarshalJSON()
 	if string(nullB) != "null" {
 		t.Errorf("MarshalJSON() null = %s, want null", nullB)
+	}
+
+	// Verify that unmarshaling "null" results in an invalid (null) Int8.
+	var nullI2 pgtype.Int8
+	if err := nullI2.UnmarshalJSON([]byte("null")); err != nil {
+		t.Fatalf("UnmarshalJSON() null error: %v", err)
+	}
+	if nullI2.Valid {
+		t.Errorf("UnmarshalJSON() null: expected Valid=false, got Valid=true")
 	}
 }
