@@ -8,6 +8,8 @@ import (
 	"strconv"
 )
 
+// Int4 represents a PostgreSQL integer (4-byte / int4 / int) type.
+// Valid indicates whether the value is non-NULL.
 type Int4 struct {
 	Int32 int32
 	Valid bool
@@ -66,6 +68,8 @@ func (i Int4) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.Int32)
 }
 
+// UnmarshalJSON supports unmarshaling from both JSON numbers and null.
+// A JSON null value results in Int4{Valid: false}.
 func (i *Int4) UnmarshalJSON(b []byte) error {
 	var n *int32
 	if err := json.Unmarshal(b, &n); err != nil {
