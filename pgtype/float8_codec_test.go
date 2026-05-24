@@ -31,6 +31,7 @@ func TestFloat8CodecEncodeBinary(t *testing.T) {
 		// NaN and infinity are valid float64 values that should also be encodable
 		{value: float64(math.NaN()), wantOK: true},
 		{value: float64(math.Inf(1)), wantOK: true},
+		{value: float64(math.Inf(-1)), wantOK: true}, // also test negative infinity
 		{value: "unsupported", wantOK: false},
 	}
 
