@@ -22,6 +22,9 @@ func TestNumericScan(t *testing.T) {
 		{input: "Infinity", wantInf: pgtype.Infinity},
 		{input: "-Infinity", wantInf: pgtype.NegativeInfinity},
 		{input: "0", wantStr: "0"},
+		// Edge cases for large numbers
+		{input: "99999999999999999999.99", wantStr: "99999999999999999999.99"},
+		{input: "-99999999999999999999.99", wantStr: "-99999999999999999999.99"},
 		{input: "not-a-number", wantErr: true},
 	}
 
