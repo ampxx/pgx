@@ -8,6 +8,9 @@ import (
 
 // Text represents a PostgreSQL text type. The Valid field indicates whether
 // the value is non-NULL. A zero-value Text (Valid == false) represents NULL.
+//
+// Note: Text is also used for PostgreSQL varchar, char, and other string-like
+// types. The String field holds the actual text value.
 type Text struct {
 	String string
 	Valid  bool
@@ -20,6 +23,7 @@ func (t *Text) ScanText(v Text) error {
 }
 
 // Scan implements the database/sql Scanner interface.
+// Accepts string, []byte, or nil (NULL) values.
 func (t *Text) Scan(src any) error {
 	if src == nil {
 		*t = Text{}
@@ -46,6 +50,7 @@ func (t Text) Value() (driver.Value, error) {
 }
 
 // MarshalJSON implements the json.Marshaler interface.
+// A NULL (Valid == false) Text marshals to JSON null.
 func (t Text) MarshalJSON() ([]byte, error) {
 	if !t.Valid {
 		return []byte("null"), nil
@@ -54,6 +59,7 @@ func (t Text) MarshalJSON() ([]byte, error) {
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
+// A JSON null value results in a Text with Valid == false.
 func (t *Text) UnmarshalJSON(b []byte) error {
 	var s *string
 	if err := json.Unmarshal(b, &s); err != nil {
