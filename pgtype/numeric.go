@@ -9,6 +9,8 @@ import (
 )
 
 // Numeric represents a PostgreSQL numeric type with arbitrary precision.
+// The value is represented as Int * 10^Exp.
+// Special values NaN, Infinity, and -Infinity are also supported.
 type Numeric struct {
 	Int    *big.Int
 	Exp    int32
@@ -76,6 +78,7 @@ func (n Numeric) Value() (driver.Value, error) {
 }
 
 // String returns a string representation of the Numeric.
+// For invalid Numeric values, an empty string is returned rather than panicking.
 func (n Numeric) String() string {
 	if !n.Valid {
 		return ""
@@ -98,6 +101,16 @@ func (n Numeric) String() string {
 	}
 	if n.Exp < 0 {
 		pos := len(s) + int(n.Exp)
+		// Handle negative numbers: preserve the leading minus sign when padding
+		if n.Int.Sign() < 0 {
+			// s includes a leading '-', adjust pos accordingly
+			digits := s[1:]
+			dpos := len(digits) + int(n.Exp)
+			if dpos <= 0 {
+				return "-0." + strings.Repeat("0", -dpos) + digits
+			}
+			return "-" + digits[:dpos] + "." + digits[dpos:]
+		}
 		if pos <= 0 {
 			return "0." + strings.Repeat("0", -pos) + s
 		}
