@@ -70,11 +70,14 @@ func (b *Bool) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// parseBoolString converts common string representations of boolean values.
+// Accepted true values:  t, true, TRUE, 1, yes, YES, on, ON, T, True, Yes, On
+// Accepted false values: f, false, FALSE, 0, no, NO, off, OFF, F, False, No, Off
 func parseBoolString(s string) (bool, error) {
 	switch s {
-	case "t", "true", "TRUE", "1", "yes", "YES", "on", "ON":
+	case "t", "true", "TRUE", "True", "T", "1", "yes", "YES", "Yes", "on", "ON", "On":
 		return true, nil
-	case "f", "false", "FALSE", "0", "no", "NO", "off", "OFF":
+	case "f", "false", "FALSE", "False", "F", "0", "no", "NO", "No", "off", "OFF", "Off":
 		return false, nil
 	}
 	return false, fmt.Errorf("cannot parse %q as bool", s)
