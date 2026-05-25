@@ -42,6 +42,9 @@ func (f *Float8) Scan(src any) error {
 	return fmt.Errorf("cannot scan %T into Float8", src)
 }
 
+// Value implements the driver.Valuer interface.
+// Special float values (NaN, Infinity, -Infinity) are returned as their
+// PostgreSQL string representations since the wire protocol requires it.
 func (f Float8) Value() (driver.Value, error) {
 	if !f.Valid {
 		return nil, nil
@@ -62,6 +65,8 @@ func (f Float8) MarshalJSON() ([]byte, error) {
 	if !f.Valid {
 		return []byte("null"), nil
 	}
+	// Note: json.Marshal does not support NaN or Infinity for float64,
+	// so callers should handle special values before marshaling.
 	return json.Marshal(f.Float64)
 }
 
